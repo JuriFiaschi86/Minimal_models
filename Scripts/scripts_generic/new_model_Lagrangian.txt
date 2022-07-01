@@ -1,0 +1,168 @@
+There are many details to be adjusted in order to prepare a usable model file to be given to SARAH.
+
+The outputs of the "Lagrangian.py" (by Simon May) have to be edited to prepare correctly a new model to input to SARAH.
+These are the main steps to follow.
+
+1) Use SARAH version 4.13.0 or above (otherwise patches for "SPhenoBoundaryEW.m" and "SPhenoLoopDecaysReal.m" are necessary).
+
+2) Edit the output files of "Lagrangian.py" (by Simon May):
+
+
+-> "[model_name_full].m"
+this part interfaces the usage of SARAH notation with Weyl spinors, while SPheno and micrOMEGA use Dirac spinors.
+
+[Names of the particles and parameters]
+All the particle names shall be rewritten using standard characters. The special character \lambda is allowed for the couplings.
+(* Lagrangian involving the new fields *)
+Change names here accordingly. Some couplings can be redundant and can be commented out.
+
+(* mixing *)
+
+[Matter Sector]
+Here we need to specify the mixing of Majorana and new neutral fermions.
+EXAMPLE:
+In the T1-3-B_alpha=0 model we have 1 fermion singlet, 2 fermion doublet, 1 scalar triplet.
+{{CPsi0, psi0, psip0}, {chi, Uferm}}
+here the three neutral component of the 3 fermions are combined into a neutral particle "chi" through the mixing matrix "Uferm".
+{{vL}, {VL, Uneu}}
+this is the mixing of the neutrinos into eigenstate "VL" through the mixing matrix "Uneu".
+
+[Dirac Spinors]
+Add the charged and neutral component of new fermions combined into Dirac spinors.
+Similarly Majorana particles have to be combined into Dirac spinors.
+EXAMPLE:
+Fnu -> {VL, conj[VL]}
+The components of Majorana neutrinos are combined into a Dirac spinor.
+Fpsi -> {psim, conj[psipp]}
+we build the fermion Dirac spinor "Fpsi" from the charged component of Weyl spinors of the new fermions (with charges -, Conj[+]).
+Fchi -> {chi, conj[chi]}
+also the neutral component of the fermions are combined into a Dirac spinor starting from their Weyl components.
+
+(* phases *)
+In order to have real rotation matrices or equivalently to force the code to obtain positive masses in the spectrum, we need to add a phase to the definition of (some) fields.
+The following lines are to be added:
+DEFINITION[EWSB][Phases] = {
+    {psim, phasepsi}
+};
+
+IMPORTANT: In order to generate 3 masses for the 3 neutrinos, the parameter \lambda_6 has been edited by hand to have 3 components.
+
+
+
+-> "particles.m"
+All the particle names shall be rewritten using standard characters, accordingly to the definitions in the model file.
+(* new fields *)
+(* to be completed manually *)
+Add a block with all the new particles and their definitions.
+PDG number shall be chosed not belonging to other standard particle.
+Specify their electric charge.
+Can use the "LesHouches" attribute to the mass of the neutrinos because... (?).
+[WeylFermionAndIndermediate] also here rename the particles accordingly using standard characters.
+EXAMPLE:
+{phip, {Description -> "BSM field ϕ+",
+			LaTeX -> "\\phi^+",
+			OutputName -> "php",
+			PDG -> {901},
+			FeynArtsNr -> 901,
+			ElectricCharge -> 1
+		}
+	},
+	{phi0, {Description -> "BSM field ϕ0",
+			LaTeX -> "\\phi^0",
+			OutputName -> "ph0",
+			PDG -> {902},
+			FeynArtsNr -> 902,
+			ElectricCharge -> 0
+		}
+	},
+
+	{Fpsi, {Description -> "BSM charged (-1) Dirac spinor Fψ",
+			LaTeX -> "\\psi",
+			OutputName -> "psi",
+			PDG -> {903},
+			FeynArtsNr -> 903,
+			ElectricCharge -> -1
+		}
+	},
+	{Fchi, {Description -> "BSM neutral Majorana spinor Fχ",
+			LaTeX -> "\\chi",
+			OutputName -> "ch",
+			PDG -> {911, 912, 913},
+			FeynArtsNr -> 911,
+			ElectricCharge -> 0
+		}
+	},
+
+	{Fnu,  {Description -> "Neutrinos",
+			Mass -> LesHouches
+		}
+	},
+
+
+
+-> "parameters.m"
+Set all parameters to be Real:
+"Real -> True (* not required (Real -> False: CP violation) *)"
+Specify where to be putted them in the spectrum:
+"LesHouches -> {"T13B", 11},"
+with "T13b" being the name of the block and 11 is the ID number within the block.
+IMPORTANT: how to rename the parameters can be found here.
+IMPORTANT: shall switch between the definitions of "LaTeX ->" and "OutputName ->". The latter is the name that shall be attribute to the variables.
+Add phase parameter (this one not real):
+{phasepsi, {Description -> "BSM phase for fermion component ψ-",
+			LaTeX -> "p",
+			OutputName -> "ppsi",
+			LesHouches -> {"T13B", 30}
+		}
+Add mixing matrices for fermions and neutrinos:
+{Uferm, {Description -> "Neutral fermion mixing matrix",
+			LaTeX -> "U_\\chi",
+			OutputName -> "Ufrm",
+			LesHouches -> "CHIMIX"
+		}
+	},
+
+	{Uneu, {Description -> "Neutrino mixing matrix",
+			LaTeX -> "U_\\nu",
+			OutputName -> "Uneu",
+			LesHouches -> "NUMIX"
+		}
+	},
+
+
+
+3) Add a new file "SPheno.m" to the folder to be prepared accordingly to the following steps:
+
+OnlyLowEnergySPheno = True;
+
+Add MINPAR block with the name and ID of new parameters.
+
+add "BoundaryLowScaleInput" which contains the parameters specified in MINPAR block.
+The parameter lambda_6 has been edited in order to have 3 components for 3 neutrino masses generation (i.e. "{λ6, LHInput[λ6]}"). (?)
+
+"DEFINITION[MatchingConditions]" for low scale parameters: Yukawa's, gauge couplings and Higgs VEV shall match the SM values.
+
+"DefaultInputValues" give some default input values for the new defined parameters (new masses and new coulings).
+Also explicit values for the 3 components of \lambda_6.
+
+ParametersToSolveTadpoles = {mu2};
+
+Add list of decaying particles, including the new particles.
+Specify the name of the files for the 3-body decay of SM particles. The files "Fx.f90" will be automatically generated by SARAH.
+ListDecayParticles = {Fu, Fe, Fd, hh, Hp, phip, phi0, Fchi, Fpsi};
+ListDecayParticles3B = {{Fu, "Fu.f90"}, {Fe, "Fe.f90"}, {Fd, "Fd.f90"}};
+
+EXTRA:
+Renormalisation conditions for the decays (?)
+(*RenConditionsDecays = {
+    {dCosTW, 1/2*Cos[ThetaW] * (PiVWp/(MVWp^2) - PiVZ/(mVZ^2))},
+    {dSinTW, -dCosTW/Tan[ThetaW]},
+    {dg2, 1/2 * g2 * (
+        derPiVPheavy0 + PiVPlightMZ / MVZ^2 - (
+            -(PiVWp / MVWp^2) + PiVZ / MVZ^2) / Tan[ThetaW]^2 + (2 * PiVZVP * Tan[ThetaW]
+        ) / MVZ^2
+    )},
+    {dg1, dg2 * Tan[ThetaW] + g2 * dSinTW / Cos[ThetaW] - dCosTW * g2 * Tan[ThetaW] / Cos[ThetaW]}
+};*)
+
+
